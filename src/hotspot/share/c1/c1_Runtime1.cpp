@@ -1233,29 +1233,28 @@ JRT_END
 
 #else // DEOPTIMIZE_WHEN_PATCHING
 
-JRT_ENTRY(void, Runtime1::patch_code(JavaThread* thread, Runtime1::StubID stub_id ))
-  RegisterMap reg_map(thread, false);
-
+void Runtime1::patch_code(JavaThread* thread, Runtime1::StubID stub_id ) {
   NOT_PRODUCT(_patch_code_slowcase_cnt++;)
   if (TracePatching) {
     tty->print_cr("Deoptimizing because patch is needed");
   }
+  
+  RegisterMap reg_map(thread, false);
 
   frame runtime_frame = thread->last_frame();
   frame caller_frame = runtime_frame.sender(&reg_map);
 
-  // It's possible the nmethod was invalidated in the last
-  // safepoint, but if it's still alive then make it not_entrant.
+  assert(caller_frame.is_compiled_frame(), "Wrong frame type");
   nmethod* nm = CodeCache::find_nmethod(caller_frame.pc());
   if (nm != NULL) {
     nm->make_not_entrant();
   }
 
   Deoptimization::deoptimize_frame(thread, caller_frame.id());
-
+  
   // Return to the now deoptimized frame.
-JRT_END
-
+  assert(caller_is_deopted(), "postcond");
+}
 #endif // DEOPTIMIZE_WHEN_PATCHING
 
 //
@@ -1350,8 +1349,7 @@ int Runtime1::access_field_patching(JavaThread* thread) {
   // Return true if calling code is deoptimized
 
   return caller_is_deopted();
-JRT_END
-
+}
 
 JRT_LEAF(void, Runtime1::trace_block_entry(jint block_id))
   // for now we just print out the block id
